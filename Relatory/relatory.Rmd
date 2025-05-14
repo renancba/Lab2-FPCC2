@@ -1,0 +1,152 @@
+---
+title: "Relatório de Análise de Dados Meteorológicos"
+output:
+  html_document: default
+  pdf_document: default
+date: '2025-05-14'
+---
+
+```{r setup, include=FALSE}
+# Carregar as bibliotecas necessárias
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(kableExtra)
+library(readr)
+
+# Carregar os dados
+dados <- read_csv("../Data/clima_cg_jp-semanal.csv")
+
+# Formatar os dados
+dados <- dados %>%
+  mutate(
+    semana = as.Date(semana),
+    mes = as.integer(mes),
+    ano = as.integer(ano),
+    cidade = factor(cidade)
+  )
+```
+
+Questão 1 - Qual a cidade é mais quente? Isso muda se considerarmos apenas o período de janeiro e fevereiro (pico do verão)?
+
+Justificativa:
+A cidade mais quente é João Pessoa e isso não apresenta variação se analisarmos apenas o pico do verão.
+
+Justificativa para a visualização:
+Para essa questão, foi utilizado um gráfico de barras comparando as médias das temperaturas para o ano inteiro e para os meses de verão. A barra apresenta as médias de temperatura, permitindo uma visualização clara da diferença.
+
+```{r q1, echo=FALSE}
+dados_q1 <- dados %>%
+  mutate(periodo = ifelse(mes %in% c(1, 2), "Jan-Fev", "Ano Completo")) %>%
+  group_by(cidade, periodo) %>%
+  summarise(tmedia_media = mean(tmedia, na.rm = TRUE), .groups = "drop")
+
+ggplot(dados_q1, aes(x = cidade, y = tmedia_media, fill = periodo)) +
+  geom_col(position = position_dodge(0.9)) +
+  geom_text(aes(label = round(tmedia_media, 1)), 
+            position = position_dodge(0.9), 
+            vjust = -0.3, size = 3) +
+  labs(title = "Temperatura média por cidade (Ano vs Jan-Fev)",
+       y = "Temperatura Média (°C)", fill = "Período") +
+  theme_minimal()
+```
+
+Questão 2 - Quais os meses mais quentes e mais frios? Como você descreveria a temperatura das festas juninas das cidades nos últimos anos?
+
+Justificativa:
+Os meses mais quentes são dezembro, janeiro, fevereiro e março. A temperatura durante os festejos juninos é bastante amena e com clima extremamente agradável comparando com o restante do ano.
+
+Justificativa para a visualização:
+Para esta questão, foi escolhido um gráfico de barras que exibe a temperatura média por mês para todas as cidades, permitindo identificar os picos de temperatura.
+
+```{r q2, echo=FALSE}
+dados_q2 <- dados %>%
+  group_by(mes) %>%
+  summarise(tmedia = mean(tmedia, na.rm = TRUE), .groups = "drop") %>%
+  mutate(tipo = ifelse(mes == 6, "Festas Juninas", "Outro Mês"))
+
+ggplot(dados_q2, aes(x = factor(mes), y = tmedia, fill = tipo)) +
+  geom_col() +
+  geom_text(aes(label = round(tmedia, 1)), vjust = -0.3, size = 3) +
+  labs(title = "Temperatura média por mês com destaque para junho",
+       x = "Mês", y = "Temperatura Média (°C)", fill = "") +
+  theme_minimal()
+```
+
+Questão 3 - Quanto chove por semana em JP e CG? Descreva a distribuição do volume de chuvas para as cidades?
+
+Justificativa:
+Há uma grande variação da chuva por semana em ambas as cidades, mas é extremamente notório que as chuvas em João Pessoa são bem mais frequentes e intensas, registrando um volume bem maior, consequentimente. Portanto a distribuição não é regular e bem variável.
+
+Justificativa para a visualização:
+Foi utilizado um gráfico de linhas com pontos para cada cidade, mostrando a variação do volume de chuva por semana. Isso permite uma melhor visualização dos dados e fácil comparação entre as cidades.
+
+```{r q3, echo=FALSE}
+dados_q3 <- dados %>%
+  mutate(semana_data = as.Date(semana),   
+         semana_num = week(semana_data))  
+
+dados_q3_total <- dados_q3 %>%
+  group_by(cidade, semana_num) %>%
+  summarise(total_chuva = sum(chuva, na.rm = TRUE))
+
+ggplot(dados_q3_total, aes(x = semana_num, y = total_chuva)) +
+  geom_line(color = "#2C3E50", size = 1.2) +  
+  geom_point(size = 3, color = "#E74C3C") +   
+  facet_wrap(~ cidade, ncol = 1, scales = "free_y") +  
+  labs(title = "Volume total de chuva por semana em cada cidade",
+       x = "Semana do Ano", y = "Total de Chuva (mm)") +
+  theme_minimal() +
+  theme(strip.text = element_text(face = "bold", size = 12))  
+```
+
+Questão 4 - Qual a relação entre a temperatura de uma semana e a temperatura da semana anterior?
+
+Justificativa:
+A relação entre as temperaturas de uma semana e a semana anterior apresenta uma dispersão positiva e forte, o que denota um aumento de temperatura gradual com o passar das semanas e que isso ocorre de maneira constante.
+
+Justificativa para a visualização:
+Utilizou-se um gráfico de dispersão para observar a relação entre as temperaturas de semanas consecutivas.
+
+```{r q4, echo=FALSE}
+dados_q4 <- dados %>%
+  arrange(cidade, ano, mes, semana) %>%
+  group_by(cidade) %>%
+  mutate(tmedia_lag = lag(tmedia)) %>%
+  ungroup() %>%
+  filter(!is.na(tmedia_lag), !is.na(tmedia))
+
+ggplot(dados_q4, aes(x = tmedia_lag, y = tmedia)) +
+  geom_point(alpha = 0.6, color = "steelblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "darkblue") +
+  facet_wrap(~ cidade) +
+  labs(title = "Relação entre a temperatura de uma semana e da anterior",
+       x = "Temperatura da Semana Anterior (°C)",
+       y = "Temperatura Atual (°C)") +
+  theme_minimal()
+```
+
+Questão 5 - Qual a relação entre temperatura e chuvas nas semanas em que choveu?
+
+Justificativa:
+Há uma forte relação, principalmente em João Pessoa,no qual quanto mais forte a chuva menor a temperatura daquela semana, isso é atenuado em Campina Grande mas continua perceptível, para melhorar a visualização dessa relação foi utilizado o logaritmo da quantificação de chuva semanal. 
+
+Justificativa para a visualização:
+Foi utilizado um gráfico de dispersão, com um logaritmo no eixo x e y para melhor visualização da distribuição, mostrando a correlação entre as variáveis.
+
+```{r q5, echo=FALSE}
+dados_q5 <- dados %>%
+  filter(chuva > 0)
+
+# Gráfico com escala log no eixo x e facetas por cidade
+ggplot(dados_q5, aes(x = chuva, y = tmedia)) +
+  geom_point(alpha = 0.6, color = "darkorange") +
+  geom_smooth(method = "lm", se = FALSE, color = "firebrick") +
+  scale_x_log10() +
+  facet_wrap(~ cidade) +
+  labs(title = "Relação entre chuva (log) e temperatura nas semanas com precipitação",
+       x = "Chuva (mm, escala logarítmica)",
+       y = "Temperatura Média (°C)") +
+  theme_minimal()
+```
