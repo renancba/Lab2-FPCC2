@@ -20,7 +20,7 @@ dados_q2 <- dados %>%
 
 ggplot(dados_q2, aes(x = factor(mes), y = tmedia, fill = tipo)) +
   geom_col() +
-  geom_text(aes(label = round(tmedia, 1)), vjust = -0.3, size = 3) +
+  geom_text(aes(label = round(tmedia, 1)), vjust = -0.3, linewidth = 3) +
   labs(title = "Temperatura média por mês com destaque para junho",
        x = "Mês", y = "Temperatura Média (°C)", fill = "") +
   theme_minimal()
